@@ -7,7 +7,7 @@ import sys
 default = {
     'port': 8080,
     'debug': True,
-    'host': 'localhost',
+    'host': '0.0.0.0',
     'tempdir': '/tmp',
     'datadir': '/srv/lapis',
     'database': 'lapis',
@@ -15,27 +15,34 @@ default = {
     'database_password': 'lapis',
     'database_host': 'localhost',
     'database_port': 5432,
-    'database_type': 'postgresql',
     'database_schema': 'public',
+    'database_mode': 'local',
     'database_ssl': False,
     'database_ssl_key': '',
     'database_ssl_cert': '',
     'database_ssl_ca': '',
     'baseurl': '/api',
-    'secret': '',
+    'secret': 'obamas-last-name',
     'logfile': '/var/log/lapis/lapis.log',
     'logfile_level': 'DEBUG',
     'logfile_max_size': 10485760,
     'logfile_max_backups': 5,
     'logfile_max_age': 7,
     'datadir': '/srv/lapis',
+    'standalone': False,
+    'threaded':True,
 }
 
 # if --config or -c is not specified, use default config
 if len(sys.argv) > 1 and (sys.argv[1] == '-c' or sys.argv[1] == '--config'):
     config_file = sys.argv[2]
+    # else check for environment variable "LAPIS_CONFIG"
+elif 'LAPIS_CONFIG' in os.environ:
+    config_file = os.environ['LAPIS_CONFIG']
 else:
-    config_file = '/etc/lapis/backend.conf'
+    config_file = '/etc/lapis/lapis.conf'
+
+
 
 # load config from file with configparser
 config = configparser.ConfigParser()
