@@ -20,11 +20,11 @@ def get_builds():
     """
     Get all builds
     """
-    return database.builds.get_all()
+    return database.build.list()
 
 @builds.route('/<int:build_id>', methods=['GET'])
 def get_build(build_id):
     """
     Get build by id
     """
-    return {"build": database.builds.get(build_id)}
+    return {"build": database.build.get(build_id)}
