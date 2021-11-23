@@ -1,1 +1,5 @@
 __pycache__/
+*.log
+*.conf
+# It's a matter of personal preference for however way you want to debug this app
+.vscode
