@@ -74,11 +74,17 @@ def connection():
 def initialize():
     conn = connection()
     if conn is not None:
-        print("Initializing database..")
-        cursor = conn.cursor()
-        cursor.execute(lapis_schema())
-        conn.commit()
-        conn.close()
+        try:
+            lapis.logger.info("Initializing database..")
+            cursor = conn.cursor()
+            #update schema
+            cursor.execute(lapis_schema())
+            #update version
+            conn.commit()
+        except Exception as e:
+            # error and return null if there's a problem
+            lapis.logger.error(e)
+            return None
 # ================================
 # database functions
 # ================================
