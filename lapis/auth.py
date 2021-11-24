@@ -37,6 +37,7 @@ def isValid(username: str, password: str) -> bool:
 
 def checkWorkerToken(token: str) -> dict:
     # Check token validity from database
+    token = token.replace('Bearer ', '')
     if not token:
         return {'success': False, 'error': 'No token provided'}
     user = database.workers.get_by_token(token)
@@ -46,19 +47,57 @@ def checkWorkerToken(token: str) -> dict:
 
 def checkUserToken(token: str) -> dict:
     # Check token validity from database
+    token = token.replace('Bearer ', '')
     if not token:
         return {'success': False, 'error': 'No token provided'}
-    user = database.users.get_by_token(token)
+    user = database.user.get_by_token(token)
     if not user:
         return {'success': False, 'error': 'Invalid token'}
     return {'success': True, 'user': user}
 
-def login(username: str, password: str) -> dict:
+def login(username: str=None, password: str=None, token:str=None) -> dict:
     """
     Logs the user in
     """
     check = isValid(username, password)
-    if not check['success']:
+    if token:
+        token = token.replace('Bearer ', '')
+        # check if the token is valid
+        # Check the token against the database
+        check = checkUserToken(token)
+        if not check['success']:
+            # check the error
+            match check['error']:
+                case 'Invalid token':
+                    return {'success': False, 'error': 'Invalid token', 'code': check['error']}
+                case _:
+                    return {'success': False, 'error': 'Unknown error', 'code': check['error']}
+        else:
+            # give the user a session
+            token = secrets.token_urlsafe(32)
+            # look at existing session ids
+            sessions = database.sessions.list_all()
+            user = check['user']
+            # if there are no sessions, start at 1
+            if not sessions:
+                session_id = 1
+            else:
+                session_id = max([session['id'] for session in sessions]) + 1
+            # add the session to the database
+            database.sessions.add({
+                "id": session_id,
+                "user_id": user['id'],
+                "token": token,
+                "created": util.timestamp
+            })
+            # Update the login time
+            conn = database.connection()
+            cur = conn.cursor()
+            cur.execute("UPDATE users SET last_login = %s WHERE id = %s", (util.timestamp, user['id']))
+            cur.close()
+            conn.close()
+            return token
+    elif not check['success']:
         # check the error
         match check['error']:
             case 'invalidAuth':
@@ -69,13 +108,14 @@ def login(username: str, password: str) -> dict:
                 return {'success': False, 'error': 'Invalid password', 'code': check['error']}
             case _:
                 return {'success': False, 'error': 'Unknown error', 'code': check['error']}
+
     else:
         # get the user by their username
         user = database.user.get_by_name(username)
         # generate token
-        token = hmac.new(config.secret_key.encode(), str(check['user']['id']).encode()).hexdigest()
+        token = secrets.token_urlsafe(32)
         # look at existing session ids
-        sessions = database.sessions.get_all()
+        sessions = database.sessions.list_all()
         # if there are no sessions, start at 1
         if not sessions:
             session_id = 1
@@ -86,8 +126,14 @@ def login(username: str, password: str) -> dict:
             "id": session_id,
             "user_id": user['id'],
             "token": token,
-            "created": util.datetime()
+            "created": util.timestamp
         })
+        conn = database.connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET last_login = %s WHERE id = %s", (util.timestamp, user['id']))
+        cur.close()
+        conn.close()
+        return token
 
 def signup(username: str, password: str, email: str) -> dict:
     """
@@ -100,18 +146,14 @@ def signup(username: str, password: str, email: str) -> dict:
     if database.user.get_by_email(email):
         return {'success': False, 'error': 'Email taken'}
     # check if the username is valid
-    # also prevent SQL injection
-    if not match(r'^[a-zA-Z0-9_]+$', username):
+    if not username or not password or not email:
+        return {'success': False, 'error': 'Please check your input'}
+    if not match(r'^[a-zA-Z0-9_]{3,16}$', username):
         return {'success': False, 'error': 'Invalid username'}
-    # check if the password is valid
-    # also prevent SQL injection
-    if not match(r'^[a-zA-Z0-9_]+$', password):
+    if not match(r'^[a-zA-Z0-9_]{3,16}$', password):
         return {'success': False, 'error': 'Invalid password'}
-    # check if the email is valid
-    # also prevent SQL injection
-    if not match(r'^[a-zA-Z0-9_@.]+$', email):
+    if not match(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', email):
         return {'success': False, 'error': 'Invalid email'}
-
     # generate random token with secrets, then salt with secret key
     token = secrets.token_urlsafe(32)
     # look at existing session ids
@@ -135,4 +177,14 @@ def signup(username: str, password: str, email: str) -> dict:
         return {'success': False, 'error': e}
 
     # return the token
-    return {'success': True, 'token': token, 'user_id': user_id}
+    return {'success': True, 'token': token}
+
+def sessionAuth(token: str) -> dict:
+    """
+    Checks the session token
+    """
+    # check the token against the sessions table and see if it's valid
+    session = database.sessions.get(token)
+    if not session:
+        return False
+    else: return True

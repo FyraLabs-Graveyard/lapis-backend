@@ -5,10 +5,12 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
     username VARCHAR(255) UNIQUE,
     password VARCHAR(255),
-    email VARCHAR(255),
+    email VARCHAR(255) NOT NULL,
     created TIMESTAMP,
     last_login TIMESTAMP,
-    token VARCHAR(255)
+    token VARCHAR(255) NOT NULL,
+    -- permission field is optional _char
+    permissions char[] DEFAULT '{}'::char[]
 );
 CREATE TABLE IF NOT EXISTS sessions (
     id SERIAL PRIMARY KEY,
@@ -33,7 +35,7 @@ CREATE TABLE IF NOT EXISTS builds (
     finished_at TIMESTAMP,
     duration INT,
     -- output is a json object that contains the output of the build, containing files, logs, etc
-    output JSONB NOT NULL
+    output _bytea
 );
 CREATE TABLE IF NOT EXISTS tasks (
     -- available tasks for the workers, it's a battle royale between the workers for who gets to do what
@@ -55,7 +57,6 @@ CREATE TABLE IF NOT EXISTS tasks (
     --   failure: the task failed
     status VARCHAR(255) NOT NULL,
     worker_id INTEGER,
-    FOREIGN KEY (worker_id) REFERENCES workers(id),
     --payload is a json object that contains the payload of the task, containing files, logs, etc
     payload JSONB NOT NULL
 );
@@ -67,7 +68,7 @@ CREATE TABLE IF NOT EXISTS workers (
     name VARCHAR(255) NOT NULL,
     -- type can be an array of the tasks it can do
     type VARCHAR(255) NOT NULL,
-    FOREIGN KEY (type) REFERENCES tasks(type),
+    --FOREIGN KEY (type) REFERENCES tasks(type),
     -- status can have the following values:
     --   idle: the worker is idle and waiting for a task
     --   busy: the worker is busy and working on a task

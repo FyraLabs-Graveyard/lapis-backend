@@ -6,6 +6,7 @@ import lapis.api as api
 import datetime
 import lapis.util as util
 import random
+import os
 
 
 test_build: dict = {
@@ -18,19 +19,24 @@ test_build: dict = {
     "started_at": util.timestamp,
     "finished_at": util.timestamp,
     "duration": 0,
-    "output": {
-        "stdout": "",
-        "stderr": "",
-    }
+    "output": [
+        # the output are stored as pure binary data
+        # so read the file and convert it to a bin string
+        os.urandom(random.randint(0, 100))
+    ]
 }
 
+test_job: dict = {
+    # unique id
+    "id": random.randint(0, 1000000),
+    "build_id": 0,
+}
+
+
 lapis.db.build.insert(test_build)
-print(test_build)
-print(lapis.db.build.status(test_build["id"]))
 
 lapis.db.tasks.insert({
     "id": test_build["id"],
-    "build_id": test_build["id"],
     "status": "pending",
     "started_at": util.timestamp,
     "finished_at": None,

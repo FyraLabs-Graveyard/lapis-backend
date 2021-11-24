@@ -21,18 +21,54 @@ def signup():
     password = flask.request.args.get('password')
     email = flask.request.args.get('email')
     # if anything is missing, return an error
-    if not username or not password or not email:
-        return flask.make_response(flask.jsonify({'error': 'Missing username, password, or email'}), 400)
-    else:
-        # check if the user already exists
-        if database.user.get_by_name(username):
-            return flask.make_response(flask.jsonify({'error': 'User already exists'}), 409)
+    return auth.signup(username=username, password=password, email=email)
+
+
+@users.route('/login', methods=['GET', 'POST'])
+def login():
+    """
+    Log in a user
+    """
+    try:
+        response = flask.make_response()
+        # get password from HTTP login form
+        username = flask.request.args.get('username')
+        password = flask.request.args.get('password')
+
+
+        if flask.request.args.get('token'):
+            utoken = flask.request.args.get('token') 
+        elif flask.request.headers.get('Authorization'):
+            utoken = flask.request.headers.get('Authorization')
+        else :
+            utoken = None
+        # get bearer token from request
+        logger.debug(flask.request.headers)
+        logger.debug(flask.request.args.to_dict())
+        if username or password:
+            token = auth.login(username=username, password=password)
+            response.status_code = 200
+        elif utoken:
+            # return a cookie if succeeds
+            token = auth.login(token=utoken)
+            response.status_code = 200
+
         else:
-            # sign up the user
-            return {
-                'response': auth.signup(username=username, password=password, email=email),
-                'args': flask.request.args.to_dict()
-            }
+            response.status_code = 401
+        #logger.debug(token)
+        #logger.debug(utoken)
+        # finally, check the status of the token
+        if token:
+            response.set_cookie('token', token)
+        else:
+            response.status_code = 401
+        #logger.debug(token)
+        #logger.debug(utoken)
+    except Exception as e:
+        return str(e), 500
+    return response
+
+
 @users.route('/<user_id>', methods=['GET'])
 def get_user(user_id):
     """
@@ -48,4 +84,5 @@ def get_user(user_id):
     return flask.jsonify({
         'user': user
     }), 200
+
 

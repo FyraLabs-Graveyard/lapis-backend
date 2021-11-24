@@ -321,11 +321,12 @@ class user:
         try:
             conn = connection()
             cur = conn.cursor(cursor_factory=RealDictCursor)
-            cur.execute("INSERT INTO users (id,username,email,password) VALUES (%s,%s,%s,%s)",
+            cur.execute("INSERT INTO users (id,username,email,password, token ) VALUES (%s,%s,%s,%s,%s)",
                         (user["id"],
                          user["username"],
                          user["email"],
-                         user["password"]))
+                         user["password"],
+                         user["token"]))
             conn.commit()
             cur.close()
             conn.close()
@@ -384,6 +385,7 @@ class user:
         user = cur.fetchone()
         conn.close()
         return user
+
     def get_by_email(email):
         conn = connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
