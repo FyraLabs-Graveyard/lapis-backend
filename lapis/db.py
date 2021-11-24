@@ -24,8 +24,6 @@ def lapis_schema():
 # use config.set('') to set the value of a key
 # get the database connection
 
-#TODO use row_to_json to convert rows to json instead of outputting array of values
-
 def connection():
     try:
         if config.get('database_mode') == 'local':
@@ -47,7 +45,7 @@ def connection():
         # create a schema called lapis if it doesn't exist
         try:
             cursor = conn.cursor()
-            lapis.logger.debug(cursor.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name=%s)", ["task"]))
+            cursor.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name=%s)", ["task"])
             if cursor.fetchone()[0] == 0:
                 # schema doesn't exist
                 cursor.execute(lapis_schema())
@@ -175,6 +173,7 @@ class build:
         status = cur.fetchone()
         conn.close()
         return status[0]
+    
 
 
 class tasks:
@@ -205,7 +204,10 @@ class tasks:
     def list(type="pending"):
         conn = connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM tasks WHERE status=%s", (type,))
+        if type == None:
+            cur.execute("SELECT * FROM tasks")
+        else:
+            cur.execute("SELECT * FROM tasks WHERE status=%s", (type,))
         tasks = cur.fetchall()
         conn.close()
         # return tasks as an array of dictionaries
@@ -241,15 +243,28 @@ class tasks:
         cur.close()
         conn.close()
 
+    def find_by_build(build_id):
+        conn = connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM tasks WHERE build_id=%s", (build_id,))
+        tasks = cur.fetchall()
+        conn.close()
+        # return tasks as an array of dictionaries
+        return tasks
 class workers:
     # Workers should update their last seen time (ping the server) every now and then
     def ping(token):
-        conn = connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("UPDATE workers SET last_seen=NOW() WHERE token=%s", (token,))
-        conn.commit()
-        cur.close()
-        conn.close()
+        try:
+            conn = connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("UPDATE workers SET last_seen=%s WHERE token=%s", (util.timestamp,token,))
+            #lapis.logger.debug("Worker " + token + " pinged" + "where time is " + str(util.timestamp))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            lapis.logger.error("Error updating worker last seen time: " + str(e))
+
 
     def insert(worker):
         lapis.logger.debug
@@ -300,7 +315,15 @@ class workers:
         worker = cur.fetchone()
         conn.close()
         return worker
-    
+
+    def get_by_name(name):
+        conn = connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM workers WHERE name=%s", (name,))
+        worker = cur.fetchone()
+        conn.close()
+        return worker
+
     def update(id, worker):
         conn = connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -461,10 +484,10 @@ class sessions:
         cur.close()
         conn.close()
     # Kick the user out of the session by UID
-    def kick(id):
+    def kick(token):
         conn = connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("DELETE FROM sessions WHERE user_id=%s", (id,))
+        cur.execute("DELETE FROM sessions WHERE token=%s", (token,))
         conn.commit()
         cur.close()
         conn.close()

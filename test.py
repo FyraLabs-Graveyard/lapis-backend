@@ -19,11 +19,11 @@ test_build: dict = {
     "started_at": util.timestamp,
     "finished_at": util.timestamp,
     "duration": 0,
-    "output": [
-        # the output are stored as pure binary data
-        # so read the file and convert it to a bin string
-        os.urandom(random.randint(0, 100))
-    ]
+    "output": {
+        "files": [
+            'aaa'
+            ],
+    }
 }
 
 test_job: dict = {

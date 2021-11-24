@@ -1,6 +1,7 @@
 #Authentication for Lapis
 import hashlib
 import hmac
+from os import name
 from re import match
 import lapis.config as config
 import json
@@ -10,10 +11,22 @@ import lapis.util as util
 import lapis.config as config
 import secrets
 
+"""
+Authentication functions for Lapis
+There's no real verification here, these functions are *for* verifying the session itself to be sure that the user exists.
+The real gatekeeper is the API itself, which runs these functions to verify the user.
+There are also functions here for generating tokens for workers and users, and managing sessions.
+"""
+
 def passHash(password: str) -> str:
-    hash1 = hashlib.sha256(password.encode()).hexdigest()
+    """
+    Hashes a string with SHA-512.
+    """
+    # I was going to use SHA-256 or scrypt, but then if they had an ASIC miner for either, they'd be able to brute force it.
+    # Hooray for Bitcoin and Lite/Dogecoin!
+    hash1 = hashlib.sha512(password.encode()).hexdigest()
     # salt the hash with string
-    hash2 = hashlib.sha256((hash1 + config.get('secret')).encode()).hexdigest()
+    hash2 = hashlib.sha512((hash1 + config.get('secret')).encode()).hexdigest()
     return hash2
 
 def isValid(username: str, password: str) -> bool:
@@ -188,3 +201,59 @@ def sessionAuth(token: str) -> dict:
     if not session:
         return False
     else: return True
+def addWorker(name, type):
+    """
+    Adds a worker for Lapis to build with
+    """
+    # We dont really need authentication for this, becuase why would you intentionally hack it so you can waste CPU cycles?
+    # I mean, you can inject malware into the repo, but then you can also sign the files with GPG, and do checksums, and shit
+    # and so, you can't do anything anyway because you'll need to have the Lapis directory directly mounted to run the daemon.
+    # Unless someone were to do a massive hack and make the server somehow proxy the mock config upload from the server to use their infected repos, but at that point, be my guest. The repo's yours.
+    # So, we can just add the worker and it will be fine
+    # oh yea, about the authentication, it'll be handled in the REST APIs instead.
+    # It's just a matter of how you handle it in the frontend. Or even if it's written at all at the moment
+
+    # First, check if the worker name is already taken
+    if database.workers.get_by_name(name):
+        return {'success': False, 'error': 'Worker name already taken'}
+    # Next, check if the worker name is valid
+    if not name:
+        return {'success': False, 'error': 'Please check your input'}
+    if not match(r'^[a-zA-Z0-9_]{3,16}$', name):
+        return {'success': False, 'error': 'Invalid worker name'}
+    # then add the worker to the database
+    # generate a token for authentication
+    token = secrets.token_urlsafe(128)
+    # look at existing worker ids
+    workers = database.workers.list()
+    # if there are no workers, start at 1
+    if not workers:
+        worker_id = 1
+    else:
+        worker_id = max([worker['id'] for worker in workers]) + 1 # I should probably write a function just for these things
+    # add the worker to the database
+    try:
+        worker_id = database.workers.insert({
+        "name": name,
+        "token": token,
+        "type": type,
+        "status": "offline", # Will default to offline until it pings the server
+        "created": util.timestamp,
+        "id": worker_id
+        })
+    except Exception as e:
+        return {'success': False, 'error': e}
+    # return the token
+    return {'success': True, 'token': token}
+
+def logout(token: str) -> dict:
+    """
+    Logs the user out
+    """
+    # check the token against the sessions table and see if it's valid
+    session = database.sessions.get(token)['id']
+    if not session:
+        return {'success': False, 'error': 'Invalid token'}
+    # delete the session from the database
+    database.sessions.kick(session)
+    return {'success': True}

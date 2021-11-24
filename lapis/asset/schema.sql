@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS builds (
     finished_at TIMESTAMP,
     duration INT,
     -- output is a json object that contains the output of the build, containing files, logs, etc
-    output _bytea
+    output jsonb
 );
 CREATE TABLE IF NOT EXISTS tasks (
     -- available tasks for the workers, it's a battle royale between the workers for who gets to do what

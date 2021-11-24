@@ -12,23 +12,26 @@ import lapis.api.users
 import lapis.api.session
 import lapis.api.workers
 import lapis.api.tasks
+import lapis.api.auth
 #The funny blueprints, idk i never used flask before
-import lapis.plugins.standalone
 from flask import Blueprint
+
+import lapis.manager
 
 from lapis.util import loadmod
 
-# for weird reasons, we're making this the main entry point becuase Flask didn't like it otherwise
+# for weird reasons, we're making this the main entry point becuase Flask wouldn't like it otherwise
 # The lapis-server.py script will still be up as a simple launcher for this script.
 
 from lapis.util import loadmod
 # run the standalone thread
 
+#TODO make this actually run if it is set to true
 if config.get('standalone') == True:
     lapis.plugins.standalone.StandaloneSubprocess().start()
 #lapis.plugins.standalone.StandaloneSubprocess().start()
 
-#try and touch database so it generates the tables
+#try and touch database so it generates the tables, weird but it works
 try:
     lapis.db.initialize()
 except Exception as e:
@@ -59,11 +62,16 @@ app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 # set flask port to config
 
+# I'd replace this with a 501 response, but it's a waste of time so 404 it is
+
 app.register_blueprint(lapis.api.builds.builds, url_prefix=baseurl+'/builds')
 app.register_blueprint(lapis.api.tasks.tasks, url_prefix=baseurl+'/tasks')
 app.register_blueprint(lapis.api.users.users, url_prefix=baseurl+'/users')
 #app.register_blueprint(lapis.api.session.session, url_prefix=baseurl+'/session')
-#app.register_blueprint(lapis.api.workers.workers, url_prefix=baseurl+'/workers')
+app.register_blueprint(lapis.api.workers.workers, url_prefix=baseurl+'/workers')
+
+# register the authendication blueprint
+app.register_blueprint(lapis.api.auth.authen, url_prefix=baseurl)
 
 @app.after_request
 def after_request(response):
