@@ -73,7 +73,7 @@ class StandaloneSubprocess(threading.Thread):
                 # check the task type
                 task = db.tasks.list()[0]
                 #logger.debug("Selected task:" + str(task))
-                logger.debug("worker data:" + db.workers.get(0))
+                #logger.debug("worker data:" + db.workers.get(0))
                 # check if one of the entries in worker type is in the task type
 
 

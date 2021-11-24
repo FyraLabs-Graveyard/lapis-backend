@@ -15,7 +15,6 @@ default = {
     'database_password': 'lapis',
     'database_host': 'localhost',
     'database_port': 5432,
-    'database_schema': 'public',
     'database_mode': 'local',
     'database_ssl': False,
     'database_ssl_key': '',
@@ -28,7 +27,6 @@ default = {
     'logfile_max_size': 10485760,
     'logfile_max_backups': 5,
     'logfile_max_age': 7,
-    'datadir': '/srv/lapis',
     'standalone': False,
     'threaded':True,
 }

@@ -13,11 +13,35 @@ import lapis.api.session
 import lapis.api.workers
 import lapis.api.tasks
 #The funny blueprints, idk i never used flask before
-
+import lapis.plugins.standalone
 from flask import Blueprint
 
+from lapis.util import loadmod
 
+# for weird reasons, we're making this the main entry point becuase Flask didn't like it otherwise
+# The lapis-server.py script will still be up as a simple launcher for this script.
 
+from lapis.util import loadmod
+# run the standalone thread
+
+if config.get('standalone') == True:
+    lapis.plugins.standalone.StandaloneSubprocess().start()
+#lapis.plugins.standalone.StandaloneSubprocess().start()
+
+#try and touch database so it generates the tables
+try:
+    lapis.db.initialize()
+except Exception as e:
+    logger.warning(e)
+
+try:
+    # load all modules in the plugins directory
+    loadmod('lapis.plugins')
+    #load the managers
+    loadmod('lapis.managers')
+    loadmod('lapis.api')
+except Exception as e:
+    logger.warning(e)
 
 baseurl = config.get('baseurl')
 #print(config.list())
@@ -25,7 +49,7 @@ baseurl = config.get('baseurl')
 # get lapis path from config
 
 
-print(FlaskConfig.values)
+#print(FlaskConfig.values)
 
 def main():
     from . import app
@@ -37,7 +61,7 @@ app.config["DEBUG"] = True
 
 app.register_blueprint(lapis.api.builds.builds, url_prefix=baseurl+'/builds')
 app.register_blueprint(lapis.api.tasks.tasks, url_prefix=baseurl+'/tasks')
-#app.register_blueprint(lapis.api.users.users, url_prefix=baseurl+'/users')
+app.register_blueprint(lapis.api.users.users, url_prefix=baseurl+'/users')
 #app.register_blueprint(lapis.api.session.session, url_prefix=baseurl+'/session')
 #app.register_blueprint(lapis.api.workers.workers, url_prefix=baseurl+'/workers')
 

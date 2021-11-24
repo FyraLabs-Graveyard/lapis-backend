@@ -8,6 +8,7 @@ import datetime
 import json
 import os
 import secrets
+from psycopg2.extras import RealDictCursor
 
 # load schema from SQL file in assets/
 def lapis_schema():
@@ -22,6 +23,8 @@ def lapis_schema():
 # use config.get('') to get the value of a key
 # use config.set('') to set the value of a key
 # get the database connection
+
+#TODO use row_to_json to convert rows to json instead of outputting array of values
 
 def connection():
     try:
@@ -100,7 +103,7 @@ class build:
             lapis.logger.debug(build)
         try:
             conn = connection()
-            cur = conn.cursor()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
             build["output"] = json.dumps(build["output"])
             cur.execute("INSERT INTO builds (id,name,description,source,status,started_at,finished_at,duration,output) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                         (build["id"],
@@ -120,7 +123,7 @@ class build:
     
     def remove(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("DELETE FROM builds WHERE id=%s", (id,))
         conn.commit()
         cur.close()
@@ -128,18 +131,19 @@ class build:
     
     def list(amount=None):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         if amount is None:
+            # output the builds as JSON
             cur.execute("SELECT * FROM builds")
         else:
             cur.execute("SELECT * FROM builds ORDER BY id DESC LIMIT %s", (amount,))
         builds = cur.fetchall()
         conn.close()
+        # return as JSON dump
         return builds
-
     def get(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM builds WHERE id=%s", (id,))
         build = cur.fetchone()
         conn.close()
@@ -147,7 +151,7 @@ class build:
 
     def update(id, build):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         build["output"] = json.dumps(build["output"])
         # only update the fields that are specified
         cur.execute("UPDATE builds SET name=%s, description=%s, source=%s, status=%s, started_at=%s, finished_at=%s, duration=%s, output=%s WHERE id=%s",
@@ -166,7 +170,7 @@ class build:
 
     def status(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT status FROM builds WHERE id=%s", (id,))
         status = cur.fetchone()
         conn.close()
@@ -177,7 +181,7 @@ class tasks:
     def insert(task):
         try:
             conn = connection()
-            cur = conn.cursor()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
             cur.execute("INSERT INTO tasks (id,type,build_id,status,payload) VALUES (%s,%s,%s,%s,%s)",
                         (task["id"],
                          task["type"],
@@ -192,7 +196,7 @@ class tasks:
 
     def remove(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("DELETE FROM tasks WHERE id=%s", (id,))
         conn.commit()
         cur.close()
@@ -200,7 +204,7 @@ class tasks:
 
     def list(type="pending"):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM tasks WHERE status=%s", (type,))
         tasks = cur.fetchall()
         conn.close()
@@ -209,7 +213,7 @@ class tasks:
 
     def get(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM tasks WHERE id=%s", (id,))
         task = cur.fetchone()
         conn.close()
@@ -217,7 +221,7 @@ class tasks:
 
     def take(worker_id,id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("UPDATE tasks SET status='running' WHERE id=%s", (id,))
         # assign task to the worker that took it
         cur.execute("UPDATE tasks SET worker_id=%s WHERE id=%s", (lapis.worker.id, id))
@@ -227,7 +231,7 @@ class tasks:
 
     def update(id, task):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         # only update the fields that are specified
         cur.execute("UPDATE tasks SET status=%s, payload=%s WHERE id=%s",
                     (task["status"],
@@ -241,7 +245,7 @@ class workers:
     # Workers should update their last seen time (ping the server) every now and then
     def ping(token):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("UPDATE workers SET last_seen=NOW() WHERE token=%s", (token,))
         conn.commit()
         cur.close()
@@ -251,7 +255,7 @@ class workers:
         lapis.logger.debug
         try:
             conn = connection()
-            cur = conn.cursor()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
             cur.execute("INSERT INTO workers (id,name,type,status,token) VALUES (%s,%s,%s,%s,%s)",
                         (worker["id"],
                          worker["name"],
@@ -266,7 +270,7 @@ class workers:
 
     def remove(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("DELETE FROM workers WHERE id=%s", (id,))
         conn.commit()
         cur.close()
@@ -274,7 +278,7 @@ class workers:
 
     def list():
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM workers")
         workers = cur.fetchall()
         conn.close()
@@ -282,7 +286,7 @@ class workers:
 
     def get(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM workers WHERE id=%s", (id,))
         worker = cur.fetchone()
         conn.close()
@@ -291,7 +295,7 @@ class workers:
     # Chekov's gun, it's a surprise tool that'll help us later.
     def get_by_token(token):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM workers WHERE token=%s", (token,))
         worker = cur.fetchone()
         conn.close()
@@ -299,7 +303,7 @@ class workers:
     
     def update(id, worker):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         # only update the fields that are specified
         cur.execute("UPDATE workers SET name=%s, type=%s, status=%s, token=%s WHERE id=%s",
                     (worker["name"],
@@ -316,10 +320,10 @@ class user:
     def insert(user):
         try:
             conn = connection()
-            cur = conn.cursor()
-            cur.execute("INSERT INTO users (id,name,email,password) VALUES (%s,%s,%s,%s)",
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("INSERT INTO users (id,username,email,password) VALUES (%s,%s,%s,%s)",
                         (user["id"],
-                         user["name"],
+                         user["username"],
                          user["email"],
                          user["password"]))
             conn.commit()
@@ -330,7 +334,7 @@ class user:
 
     def remove(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("DELETE FROM users WHERE id=%s", (id,))
         conn.commit()
         cur.close()
@@ -338,7 +342,7 @@ class user:
 
     def list():
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM users")
         users = cur.fetchall()
         conn.close()
@@ -346,7 +350,7 @@ class user:
 
     def get(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM users WHERE id=%s", (id,))
         user = cur.fetchone()
         conn.close()
@@ -354,7 +358,7 @@ class user:
 
     def update(id, user):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         # only update the fields that are specified
         cur.execute("UPDATE users SET name=%s, email=%s, password=%s WHERE id=%s",
                     (user["name"],
@@ -365,11 +369,34 @@ class user:
         cur.close()
         conn.close()
 
+    def get_by_name(name):
+        conn = connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM users WHERE username=%s", (name,))
+        user = cur.fetchone()
+        conn.close()
+        return user
+
+    def get_by_token(token):
+        conn = connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM users WHERE token=%s", (token,))
+        user = cur.fetchone()
+        conn.close()
+        return user
+    def get_by_email(email):
+        conn = connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
+        user = cur.fetchone()
+        conn.close()
+        return user
+
 class buildroot:
     def insert(buildroot):
         try:
             conn = connection()
-            cur = conn.cursor()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
             cur.execute("INSERT INTO buildroots (id,name,type,status) VALUES (%s,%s,%s,%s)",
                         (buildroot["id"],
                          buildroot["name"],
@@ -383,7 +410,7 @@ class buildroot:
 
     def remove(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("DELETE FROM buildroots WHERE id=%s", (id,))
         conn.commit()
         cur.close()
@@ -391,7 +418,7 @@ class buildroot:
 
     def list():
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM buildroots")
         buildroots = cur.fetchall()
         conn.close()
@@ -399,7 +426,7 @@ class buildroot:
 
     def get(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM buildroots WHERE id=%s", (id,))
         buildroot = cur.fetchone()
         conn.close()
@@ -407,7 +434,7 @@ class buildroot:
 
     def update(id, buildroot):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         # only update the fields that are specified
         cur.execute("UPDATE buildroots SET name=%s, type=%s, status=%s WHERE id=%s",
                     (buildroot["name"],
@@ -421,7 +448,8 @@ class buildroot:
 class sessions:
     def add(session):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        #session["created"] = json.dumps(session["created"])
         cur.execute("INSERT INTO sessions (id,user_id,token,created) VALUES (%s,%s,%s,%s)",
                     (session["id"],
                      session["user_id"],
@@ -433,7 +461,7 @@ class sessions:
     # Kick the user out of the session by UID
     def kick(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("DELETE FROM sessions WHERE user_id=%s", (id,))
         conn.commit()
         cur.close()
@@ -441,7 +469,7 @@ class sessions:
     # list sessions by UID
     def list(id):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM sessions WHERE user_id=%s", (id,))
         sessions = cur.fetchall()
         conn.close()
@@ -449,7 +477,7 @@ class sessions:
     # list all sessions
     def list_all():
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM sessions")
         sessions = cur.fetchall()
         conn.close()
@@ -457,7 +485,7 @@ class sessions:
     # get session by token
     def get(token):
         conn = connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT * FROM sessions WHERE token=%s", (token,))
         session = cur.fetchone()
         conn.close()

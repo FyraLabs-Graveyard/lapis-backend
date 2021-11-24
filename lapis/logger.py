@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 #if argument --verbose is passed, print to stdout too
 
-if '--verbose' in sys.argv or '-V' in sys.argv:
+if '--verbose' in sys.argv or '-V' or os.environ.get('VERBOSE') == 'TRUE' in sys.argv:
     log.setLevel(logging.DEBUG)
     # in color
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
