@@ -30,7 +30,7 @@ except Exception as e:
     logger.warning(e)
 #standalone.StandaloneSubprocess().start()
  """
-print("Lapis Backend server Pre-alpha")
+print("Lapis Backend server 0.1")
 
 # start the api server
 api.run()

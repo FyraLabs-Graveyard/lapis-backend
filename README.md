@@ -13,3 +13,8 @@ It uses standard Mock config files to configure the buildroots for each build, a
 - Mock config-based buildroots
 - (planned) Interoperability with Koji
 - (planned) Docker and support for non-RPM distros
+
+
+Lapis now currently only runs as a standalone RPM builder instance.
+
+`lapisd` is still in development.
