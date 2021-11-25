@@ -52,7 +52,7 @@ def submit_build():
             #logger.debug("Got link: %s" % link)
             if link:
                 logger.debug("Got link: %s" % link)
-                build = manager.gitBuild(link, buildroot)
+                build = manager.gitBuilder_threaded(link, buildroot)
                 return flask.make_response(jsonify(build)), 202
             elif 'file' in flask.request.files:
                 # get the file
@@ -67,7 +67,7 @@ def submit_build():
                 # get the absolute path to the saved file
                 logger.debug("File path: " + path)
                 # submit the file to the build system, then wait for their response
-                build = manager.mockRebuild(path, buildroot)
+                build = manager.builder_threaded(path, buildroot)
                 # now wait for the build manager to respond
                 # don't close the connection, we want to keep the connection open and wait for a response
                 # get the return value from the build manager

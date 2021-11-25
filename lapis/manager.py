@@ -201,6 +201,20 @@ def build_git(url ,clonepath, buildroot, path='/var/lib/mock/lapis', outdir='res
 def gitBuild(url, buildroot):
     # will call the function above, then call mockRebuild
     # i'm only doing this because the git builder function is PAINFULLY convoluted
+    # create a build in the db first
+    build = util.newBuild(
+            source=url,
+            type='mock_rebuild',
+            # get the git name from the url
+            name=url.split('/')[-1].split('.')[0],
+            description='Built from Git',
+            buildroot=buildroot,
+            # lets use the NVR for the output
+            output={
+                'git': url
+            }
+    )
+    task = util.newTask(build_id=build,type= 'mock_git', source=url, buildroot=buildroot, status='running')
     build_git(
         url,
         clonepath=workdir + '/' + 'git_build',
@@ -215,6 +229,10 @@ def gitBuild(url, buildroot):
         return False, "Failed to find srpm"
     srpm = srpm[0]
     # now call mockRebuild
+    util.updateTask(task, status='finished')
+    util.updateBuild(build, status='finished', output={
+            'git': url
+        })
     return mockRebuild(srpm, buildroot)
 
 class datathread(threading.Thread):
@@ -253,6 +271,17 @@ class datathread(threading.Thread):
                     })
             time.sleep(1)
 
+
+def gitBuilder_threaded(url, buildroot):
+    # do not output logs to the console
+    thread = threading.Thread(target=gitBuild, args=(url, buildroot))
+    thread.start()
+    return True, 'Successfully started git build'
+
+def builder_threaded(srpm, buildroot):
+    thread = threading.Thread(target=mockRebuild, args=(srpm, buildroot))
+    thread.start()
+    return True, 'Successfully started mock rebuild'
 
 # start the data processing thread
 datathread().start()
