@@ -6,7 +6,7 @@
 from json import dumps
 import flask
 from flask.config import Config as FlaskConfig
-from pyroute2.iproute.linux import RawIPRoute
+from flask.json import jsonify
 import lapis.config as config
 import lapis.db as database
 import lapis.logger as logger
@@ -37,6 +37,7 @@ def submit_build():
     """
     Submit a build
     """
+    link = flask.request.form.get('link')
     token = flask.request.cookies.get('token')
     # check for auth
     if not auth.sessionAuth(token):
@@ -47,9 +48,13 @@ def submit_build():
 
     else:
         try:
-            logger.debug(flask.request.files['file'])
-            # check if theres a file or a link attached
-            if 'file' in flask.request.files:
+            logger.debug("Got buildroot: %s" % buildroot)
+            #logger.debug("Got link: %s" % link)
+            if link:
+                logger.debug("Got link: %s" % link)
+                build = manager.gitBuild(link, buildroot)
+                return flask.make_response(jsonify(build)), 202
+            elif 'file' in flask.request.files:
                 # get the file
                 file = flask.request.files['file']
                 # save the file to the server
@@ -67,26 +72,10 @@ def submit_build():
                 # don't close the connection, we want to keep the connection open and wait for a response
                 # get the return value from the build manager
                 # if the build manager returns a value, it means the build was successful
-                if build == False:
-                    return {"error": "Build failed"}, 500
-                else:
-                    return {"build": build}, 202
+                return flask.make_response(jsonify(build)), 202
             # if there is no file, check if there is a link
-            elif 'link' in flask.request.form:
-                # check if it's a direct file link or a git link
-                # by checking if it has a .git at the end
-                if flask.request.form['link'].endswith('.git'):
-                    # it's a git link
-                    manager.git_build(flask.request.form['link'])
-                    return flask.Response(status=202)
-                else:
-                    # it's a direct link
-                    # this might not work, but mock does support direct links so it should build
-                    manager.mockRebuild(flask.request.form['link'])
-                    return flask.Response(status=202)
             else:
                 return flask.make_response(flask.jsonify({"error": "No file or link provided"}), 400)
         except Exception as e:
             logger.error(e)
-            raise e
             return flask.make_response(flask.jsonify({"error": "Something went wrong: %s" % e}), 500)

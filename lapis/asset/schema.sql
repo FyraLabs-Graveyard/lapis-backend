@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS builds (
     status VARCHAR(255) NOT NULL,
     started_at TIMESTAMP NOT NULL,
     finished_at TIMESTAMP,
-    duration INT,
+    duration INTERVAL,
     -- output is a json object that contains the output of the build, containing files, logs, etc
     output jsonb,
     -- buildroot is the name of the buildroot, declared above

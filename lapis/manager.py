@@ -13,15 +13,16 @@ The manager should:
 - Manage the repository for the builds
 - Manage the build directory and the payload directory.
 """
-
+import glob
 import configparser as cp
 import datetime
+from logging import exception
 import os
 import threading
 import time
-
+import git
 import mockbuild.util as mock
-
+import mockbuild.external
 import lapis.apiHandler as api
 import lapis.auth as auth
 import lapis.config as config
@@ -113,24 +114,108 @@ def mockRebuild(srpm, buildroot):
     # get the metadata from the srpm
     # this is a bit of a hack, but it works for now
     # it uses the RPM module to get the metadata and also starts a transaction
+
     rpm = util.analyze_rpm(srpm)
-    build = util.newBuild(
-        source=srpm,
-        type='mock_rebuild',
-        name=rpm['name'],
-        description=rpm['description'],
-        buildroot=buildroot,
-    )
+    nvr = str(rpm['name'] + '-' + rpm['version'] + '-' + rpm['release'])
+    logger.info("Building %s" % nvr)
+    try:
+        build = util.newBuild(
+            source=srpm,
+            type='mock_rebuild',
+            name=rpm['name'],
+            description=rpm['description'],
+            buildroot=buildroot,
+            # lets use the NVR for the output
+            output={
+                'repo': repodir + '/' + buildroot + nvr
+            }
+        )
+    except Exception as e:
+        logger.error("Failed to create build: %s" % e)
+        return False, "Failed to create build", e
     # create a new task for the build
     task = util.newTask(build_id=build,type= 'mock_rebuild', source=srpm, buildroot=buildroot, status='running')
     mock.run('mock -r %s --configdir %s --rebuild %s --chain --localrepo %s' %
              (buildroot, mockdir, srpm, home)) # set to home because mock likes to output to results/
     # then update the task to be finished
+    # clean the working directory
+    # then update the task to be finished
+    # to protect the system itself, check if the workdir is declared, if not, don't do anything becuase no one likes accidentally deleting root
+    if os.path.exists(workdir):
+        mock.run('rm -rf %s/*' % (workdir))
+
     util.updateTask(task, status='finished')
+    util.updateBuild(build, status='finished', output={
+            'repo': repodir + '/' + buildroot + nvr
+        })
     return True, "Successfully rebuilt %s" % srpm
 
 # data processing sub-thread, now only manages dead workers
 
+def git_clone(url,path):
+    # do a recursive clone
+    # use gitpython
+    git.Repo.clone_from(url, path, depth=1, recursive=True)
+    # print output
+    print('Cloned %s to %s' % (url, path))
+
+def build_git(url ,clonepath, buildroot, path='/var/lib/mock/lapis', outdir='result', subdir=None):
+    """
+    builds an SRPM from a git repository
+    """
+    # copied over from lapisd code, because i'd rather not rewrite it
+    try:
+        git_clone(url,clonepath) #
+        # except if the repo is already cloned
+    except git.exc.GitCommandError as e:
+        print(e)
+    try:
+        command = 'mock'
+
+        if subdir is not None:
+            # add cd clonepath + <subdir> && before the command
+            command = 'cd %s/%s &&' % (clonepath, command)
+
+        args = [
+            '-r', buildroot,
+            '--rootdir', path,
+            '--resultdir', outdir,
+            '--buildsrpm '
+            # find the spec file in the clonepath, then pass it to mock as an absolute path
+            '--spec $(readlink -f $(find %s -name *.spec))' % clonepath,
+            # --source is basename of the spec file
+            '--source $(dirname $(readlink -f $(find %s -name *.spec)))' % clonepath,
+            # Enable network building by default
+            '--enable-network',
+            '--configdir %s' % mockdir,
+            '--undefine=\"%_disable_source_fetch\"',
+        ]
+        cmd = ' '.join([command] + args)
+        print('running ' + cmd)
+        mock.run(cmd)
+    except mockbuild.external.CommandError as e:
+        print(e)
+        os.system('rm -rf %s' % clonepath)
+        return False, "Failed to build git: %s" % e
+
+def gitBuild(url, buildroot):
+    # will call the function above, then call mockRebuild
+    # i'm only doing this because the git builder function is PAINFULLY convoluted
+    build_git(
+        url,
+        clonepath=workdir + '/' + 'git_build',
+        buildroot=buildroot,
+        path='/var/lib/mock/lapis',
+        outdir=workdir,
+    ) # I swear to god if this doesn't work
+    # now find the srpm that we just built right in the workdir
+    srpm = glob.glob(workdir + '/*.src.rpm')
+    if len(srpm) == 0:
+        logger.error("Failed to find srpm")
+        return False, "Failed to find srpm"
+    srpm = srpm[0]
+    # now call mockRebuild
+    return mockRebuild(srpm, buildroot)
 
 class datathread(threading.Thread):
     """

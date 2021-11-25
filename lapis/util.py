@@ -3,7 +3,7 @@
 import datetime
 import lapis.logger as logger
 import lapis.db as db
-timestamp = datetime.datetime.now().isoformat().split('.')[0]
+timestamp = datetime.datetime.now().isoformat()
 
 import pkgutil
 import sys
@@ -22,14 +22,15 @@ def last_entry(list:list):
     if len(list) == 0:
         return None
     else:
-        logger.debug(list)
+        #logger.debug(list)
         return max(list) + 1
 
 def newTask(build_id:int,source: str,type: str, buildroot, status='pending',payload:dict={},):
     """
     Creates a new task
     """
-    tasks = db.tasks.list()
+    tasks = db.tasks.list(None)
+    #logger.debug(tasks)
     if not tasks:
         task_id = 1
     else:
@@ -45,7 +46,7 @@ def newTask(build_id:int,source: str,type: str, buildroot, status='pending',payl
         'buildroot': buildroot
     })
     return task_id
-def newBuild(source: str,type: str, buildroot, description, name,):
+def newBuild(source: str,type: str, buildroot, description, name, output):
     builds = db.build.list()
     if not builds:
         build_id = 1
@@ -61,6 +62,9 @@ def newBuild(source: str,type: str, buildroot, description, name,):
         'type': type,
         'buildroot': buildroot,
         'started_at': timestamp,
+        'output': output,
+        'finished_at': None,
+        'duration': None,
     })
     return build_id
 
@@ -74,11 +78,11 @@ def updateBuild(build_id:int, output:str,status:str='finished'):
         'name': build['name'],
         'description': build['description'],
         'source': build['source'],
-        'type': build['type'],
+        #'type': build['type'],
         'status': status,
         'started_at': build['started_at'],
         'finished_at': ts,
-        'duration': timestamp - build['started_at'],
+        'duration': datetime.datetime.now() - build['started_at'],
         'output': output,
     })
     return build_id
