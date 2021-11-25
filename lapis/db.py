@@ -103,7 +103,7 @@ class build:
             conn = connection()
             cur = conn.cursor(cursor_factory=RealDictCursor)
             build["output"] = json.dumps(build["output"])
-            cur.execute("INSERT INTO builds (id,name,description,source,status,started_at,finished_at,duration,output) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            cur.execute("INSERT INTO builds (id,name,description,source,status,started_at,finished_at,duration,output,buildroot) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                         (build["id"],
                          build["name"],
                          build["description"],
@@ -112,13 +112,14 @@ class build:
                          build["started_at"],
                          build["finished_at"],
                          build["duration"],
-                         build["output"]))
+                         build["output"],
+                         build["buildroot"]))
             conn.commit()
             cur.close()
             conn.close()
         except Exception as e:
             lapis.logger.error("Error inserting build into database: " + str(e))
-    
+
     def remove(id):
         conn = connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)

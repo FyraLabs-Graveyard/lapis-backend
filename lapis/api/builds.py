@@ -6,6 +6,7 @@
 from json import dumps
 import flask
 from flask.config import Config as FlaskConfig
+from pyroute2.iproute.linux import RawIPRoute
 import lapis.config as config
 import lapis.db as database
 import lapis.logger as logger
@@ -40,6 +41,9 @@ def submit_build():
     # check for auth
     if not auth.sessionAuth(token):
         return {"error": "Not authorized"}, 401
+    buildroot = flask.request.form.get('buildroot')
+    if not buildroot:
+        return {"error": "Missing buildroot"}, 400
 
     else:
         try:
@@ -50,17 +54,23 @@ def submit_build():
                 file = flask.request.files['file']
                 # save the file to the server
                 try:
+                    path = manager.workdir + '/' + file.filename
                     file.save(manager.workdir + '/' + file.filename)
                 except Exception as e:
                     logger.error(e)
                     return {"error": "Could not save file: %s" % e}, 500
                 # get the absolute path to the saved file
-                logger.debug("File path: " + file.filename)
+                logger.debug("File path: " + path)
                 # submit the file to the build system, then wait for their response
-                manager.build(file.filename)
+                build = manager.mockRebuild(path, buildroot)
                 # now wait for the build manager to respond
                 # don't close the connection, we want to keep the connection open and wait for a response
-                return flask.Response(status=202)
+                # get the return value from the build manager
+                # if the build manager returns a value, it means the build was successful
+                if build == False:
+                    return {"error": "Build failed"}, 500
+                else:
+                    return {"build": build}, 202
             # if there is no file, check if there is a link
             elif 'link' in flask.request.form:
                 # check if it's a direct file link or a git link
@@ -72,10 +82,11 @@ def submit_build():
                 else:
                     # it's a direct link
                     # this might not work, but mock does support direct links so it should build
-                    manager.build(flask.request.form['link'])
+                    manager.mockRebuild(flask.request.form['link'])
                     return flask.Response(status=202)
             else:
                 return flask.make_response(flask.jsonify({"error": "No file or link provided"}), 400)
         except Exception as e:
             logger.error(e)
+            raise e
             return flask.make_response(flask.jsonify({"error": "Something went wrong: %s" % e}), 500)

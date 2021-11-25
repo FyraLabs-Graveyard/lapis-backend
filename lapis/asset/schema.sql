@@ -20,6 +20,22 @@ CREATE TABLE IF NOT EXISTS sessions (
     -- link to user
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+CREATE TABLE IF NOT EXISTS buildroots (
+    -- id is a unique integer for each buildroot
+    id SERIAL PRIMARY KEY,
+    -- name is the name of the buildroot
+    name VARCHAR(255) NOT NULL,
+    -- status can have the following values:
+    --   ready: the buildroot is ready to be used
+    --   building: the buildroot is currently building
+    --   offline: the buildroot is offline and not available for builds
+    status VARCHAR(255) NOT NULL,
+    -- last_used is the last time the buildroot was used
+    last_used TIMESTAMP,
+    -- last_build is the last build that was built on the buildroot
+    last_build INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS builds (
     -- build id is an integer that increments by 1 for each build
     -- name is the name of the package
@@ -35,7 +51,10 @@ CREATE TABLE IF NOT EXISTS builds (
     finished_at TIMESTAMP,
     duration INT,
     -- output is a json object that contains the output of the build, containing files, logs, etc
-    output jsonb
+    output jsonb,
+    -- buildroot is the name of the buildroot, declared above
+    buildroot VARCHAR(255) NOT NULL,
+    FOREIGN KEY (buildroot) REFERENCES buildroots(name)
 );
 CREATE TABLE IF NOT EXISTS tasks (
     -- available tasks for the workers, it's a battle royale between the workers for who gets to do what
@@ -80,19 +99,4 @@ CREATE TABLE IF NOT EXISTS workers (
     last_task INTEGER,
     -- Token: a unique token that is used to authenticate the worker
     token VARCHAR(255) NOT NULL
-);
-CREATE TABLE IF NOT EXISTS buildroots (
-    -- id is a unique integer for each buildroot
-    id SERIAL PRIMARY KEY,
-    -- name is the name of the buildroot
-    name VARCHAR(255) NOT NULL,
-    -- status can have the following values:
-    --   ready: the buildroot is ready to be used
-    --   building: the buildroot is currently building
-    --   offline: the buildroot is offline and not available for builds
-    status VARCHAR(255) NOT NULL,
-    -- last_used is the last time the buildroot was used
-    last_used TIMESTAMP,
-    -- last_build is the last build that was built on the buildroot
-    last_build INTEGER
 );
