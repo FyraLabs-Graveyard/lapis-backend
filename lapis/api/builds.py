@@ -3,9 +3,10 @@
 #!/usr/bin/env python3
 # Path: server/lapis/api/builds.py
 
-from json import dumps
+import json
 import flask
 from flask.config import Config as FlaskConfig
+from flask.helpers import make_response
 from flask.json import jsonify
 import lapis.config as config
 import lapis.db as database
@@ -22,7 +23,7 @@ def get_builds():
     """
     Get all builds
     """
-    return {"builds": database.build.list()}
+    return make_response(json.dumps(database.build.list(), default=str), 200)
 
 @builds.route('/<int:build_id>', methods=['GET'])
 def get_build(build_id):

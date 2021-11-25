@@ -13,6 +13,7 @@ import lapis.api.session
 import lapis.api.workers
 import lapis.api.tasks
 import lapis.api.auth
+import lapis.api.buildroot
 #The funny blueprints, idk i never used flask before
 from flask import Blueprint
 
@@ -69,7 +70,7 @@ app.register_blueprint(lapis.api.tasks.tasks, url_prefix=baseurl+'/tasks')
 app.register_blueprint(lapis.api.users.users, url_prefix=baseurl+'/users')
 #app.register_blueprint(lapis.api.session.session, url_prefix=baseurl+'/session')
 app.register_blueprint(lapis.api.workers.workers, url_prefix=baseurl+'/workers')
-
+app.register_blueprint(lapis.api.buildroot.buildroot, url_prefix=baseurl+'/buildroot')
 # register the authendication blueprint
 app.register_blueprint(lapis.api.auth.authen, url_prefix=baseurl)
 

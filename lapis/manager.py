@@ -68,7 +68,7 @@ def init():
     return True
 
 
-def initbuildroot(buildroot):
+def initbuildroot(buildroot,comps=None):
     """
     Initialize the buildroot.
     """
@@ -80,22 +80,29 @@ def initbuildroot(buildroot):
                          buildroot, e)
             return False
     # actually, make everything run locally for now, lapisd can wait
-    mock.run('mock -r %s --init --configdir %s' % buildroot, mockdir)
+    mock.run(f'mock -r {buildroot} --configdir {mockdir} --init')
     # bit first, create the repo directory
     try:
-        os.makedirs(repodir + '/' + buildroot)
+        pass
+        #os.makedirs(repodir + '/' + buildroot)
     except Exception as e:
         logger.error("Failed to create repo directory: %s" % e)
         return False
     finally:
-        mock.run('createrepo -o %s/%s %s/%s' % repodir, buildroot, repodir, buildroot)
+        # create the buildroot repo so createrepo doesn't complain
+        # if comps file is specified, add it to the repo
+        if comps:
+            mock.run(f'createrepo -o {repodir}/{buildroot}/ {repodir}/{buildroot}/ -g {comps}')
+        else:
+            mock.run(f'createrepo -o {repodir}/{buildroot}/ {repodir}/{buildroot}/')
 
-
-def initrepo(buildroot):
+def buildroot_threaded(buildroot, comps=None):
     """
-    Initialize the repo for the buildroot.
+    Initializes a buildroot in a separate thread
     """
-
+    thread = threading.Thread(target=initbuildroot, args=(buildroot,comps))
+    thread.start()
+    return True, 'Successfully started buildroot initialization'
 
 def mockRebuild(srpm, buildroot):
     """
@@ -214,26 +221,36 @@ def gitBuild(url, buildroot):
                 'git': url
             }
     )
+    builddir = workdir + '/' + str(build)
     task = util.newTask(build_id=build,type= 'mock_git', source=url, buildroot=buildroot, status='running')
-    build_git(
-        url,
-        clonepath=workdir + '/' + 'git_build',
-        buildroot=buildroot,
-        path='/var/lib/mock/lapis',
-        outdir=workdir,
-    ) # I swear to god if this doesn't work
-    # now find the srpm that we just built right in the workdir
-    srpm = glob.glob(workdir + '/*.src.rpm')
-    if len(srpm) == 0:
-        logger.error("Failed to find srpm")
-        return False, "Failed to find srpm"
-    srpm = srpm[0]
-    # now call mockRebuild
-    util.updateTask(task, status='finished')
-    util.updateBuild(build, status='finished', output={
-            'git': url
-        })
-    return mockRebuild(srpm, buildroot)
+    try:
+        build_git(
+            url,
+            clonepath=builddir,
+            buildroot=buildroot,
+            path='/var/lib/mock/lapis',
+            outdir=builddir + '/result',
+        ) # I swear to god if this doesn't work
+        # now find the srpm that we just built right in the workdir
+        srpm = glob.glob(builddir + '/result/*.src.rpm')
+        if len(srpm) == 0:
+            logger.error("Failed to find srpm")
+            return False, "Failed to find srpm"
+        srpm = srpm[0]
+    except Exception as e:
+        logger.error("Failed to build git: %s" % e)
+        util.updateTask(task, status='failed')
+        util.updateBuild(build, status='failed', output={
+                'git': url
+            })
+        return False, "Failed to build git: %s" % e
+    finally:
+        # now call mockRebuild
+        util.updateTask(task, status='finished')
+        util.updateBuild(build, status='finished', output={
+                'git': url
+            })
+        return builder_threaded(srpm, buildroot)
 
 class datathread(threading.Thread):
     """

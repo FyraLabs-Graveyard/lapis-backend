@@ -423,10 +423,9 @@ class buildroot:
         try:
             conn = connection()
             cur = conn.cursor(cursor_factory=RealDictCursor)
-            cur.execute("INSERT INTO buildroots (id,name,type,status) VALUES (%s,%s,%s,%s)",
+            cur.execute("INSERT INTO buildroots (id,name,status) VALUES (%s,%s,%s)",
                         (buildroot["id"],
                          buildroot["name"],
-                         buildroot["type"],
                          buildroot["status"]))
             conn.commit()
             cur.close()
@@ -470,6 +469,14 @@ class buildroot:
         conn.commit()
         cur.close()
         conn.close()
+
+    def get_by_name(name):
+        conn = connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM buildroots WHERE name=%s", (name,))
+        buildroot = cur.fetchone()
+        conn.close()
+        return buildroot
 
 class sessions:
     def add(session):

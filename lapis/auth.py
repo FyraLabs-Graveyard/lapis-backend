@@ -24,6 +24,7 @@ def passHash(password: str) -> str:
     """
     # I was going to use SHA-256 or scrypt, but then if they had an ASIC miner for either, they'd be able to brute force it.
     # Hooray for Bitcoin and Lite/Dogecoin!
+    # Edit: never fucking mind, SHA-512 is still insecure, but it's still better than nothing, also it's salted.
     hash1 = hashlib.sha512(password.encode()).hexdigest()
     # salt the hash with string
     hash2 = hashlib.sha512((hash1 + config.get('secret')).encode()).hexdigest()
