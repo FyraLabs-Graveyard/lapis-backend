@@ -1,0 +1,1 @@
+from lapis.apiHandler import app as application
