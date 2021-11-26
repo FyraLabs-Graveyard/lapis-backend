@@ -110,7 +110,7 @@ def login(username: str=None, password: str=None, token:str=None) -> dict:
             cur.execute("UPDATE users SET last_login = %s WHERE id = %s", (util.timestamp, user['id']))
             cur.close()
             conn.close()
-            return token
+            return {'success': True, 'user': user, 'token': token}
     elif not check['success']:
         # check the error
         match check['error']:
@@ -147,7 +147,7 @@ def login(username: str=None, password: str=None, token:str=None) -> dict:
         cur.execute("UPDATE users SET last_login = %s WHERE id = %s", (util.timestamp, user['id']))
         cur.close()
         conn.close()
-        return token
+        return {'success': True, 'user': user, 'token': token}
 
 def signup(username: str, password: str, email: str) -> dict:
     """

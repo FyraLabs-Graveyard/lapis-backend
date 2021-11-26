@@ -30,7 +30,7 @@ import lapis.db as db
 import lapis.internal
 import lapis.logger as logger
 import lapis.util as util
-
+import shutil
 # load the relevant variables from the config file
 home = config.get('datadir')
 logdir = config.get('logfile')
@@ -80,21 +80,20 @@ def initbuildroot(buildroot,comps=None):
                          buildroot, e)
             return False
     # actually, make everything run locally for now, lapisd can wait
-    mock.run(f'mock -r {buildroot} --configdir {mockdir} --init')
+    mock.run(f'mock -q -r {buildroot} --configdir {mockdir} --init')
     # bit first, create the repo directory
     try:
-        pass
-        #os.makedirs(repodir + '/' + buildroot)
+        os.makedirs(repodir + '/' + buildroot)
     except Exception as e:
         logger.error("Failed to create repo directory: %s" % e)
-        return False
+        pass
     finally:
         # create the buildroot repo so createrepo doesn't complain
         # if comps file is specified, add it to the repo
         if comps:
-            mock.run(f'createrepo -o {repodir}/{buildroot}/ {repodir}/{buildroot}/ -g {comps}')
+            mock.run(f'createrepo -p -o {repodir}/{buildroot}/ {repodir}/{buildroot}/ -g {comps}')
         else:
-            mock.run(f'createrepo -o {repodir}/{buildroot}/ {repodir}/{buildroot}/')
+            mock.run(f'createrepo -o {repodir}/{buildroot}/ {repodir}/{buildroot}/ -p')
 
 def buildroot_threaded(buildroot, comps=None):
     """
@@ -142,14 +141,36 @@ def mockRebuild(srpm, buildroot):
         return False, "Failed to create build", e
     # create a new task for the build
     task = util.newTask(build_id=build,type= 'mock_rebuild', source=srpm, buildroot=buildroot, status='running')
-    mock.run('mock -r %s --configdir %s --rebuild %s --chain --localrepo %s' %
+    pkgpath = f'{repodir}/{buildroot}/{nvr}/'
+    logger.debug("pkgpath: %s" % pkgpath)
+    # if the package is already built, delete the success file so we can rebuild it
+    if os.path.exists(pkgpath + 'success'):
+        os.remove(f'{pkgpath}/success')
+    
+    # make a new working directory for the build
+    try:
+        os.makedirs(f"{workdir}/{buildroot}/{task}")
+        # move the srpm into the working directory
+        os.rename(srpm, f"{workdir}/{buildroot}/{task}/{nvr}.src.rpm")
+        # redefine the srpm to be the new path
+        srpm = f"{workdir}/{buildroot}/{task}/{nvr}.src.rpm"
+    except Exception as e:
+        logger.error("Failed to create working directory: %s" % e)
+        return False, "Failed to create working directory", e
+    mock.run('mock -r %s --configdir %s --rebuild %s --chain --localrepo %s -q' %
              (buildroot, mockdir, srpm, home)) # set to home because mock likes to output to results/
-    # then update the task to be finished
-    # clean the working directory
-    # then update the task to be finished
-    # to protect the system itself, check if the workdir is declared, if not, don't do anything becuase no one likes accidentally deleting root
+    
+    
+    # copy the SRPM to the repo
+    try:
+        shutil.copy(srpm, f"{repodir}/{buildroot}/{nvr}/{nvr}.src.rpm")
+    except Exception as e:
+        logger.error("Failed to copy SRPM to repo: %s" % e)
+        return False, "Failed to copy SRPM to repo", e
+    # update the repos for the buildroot
+    mock.run(f'createrepo -o {repodir}/{buildroot}/ {repodir}/{buildroot}/ --update')
     if os.path.exists(workdir):
-        mock.run('rm -rf %s/*' % (workdir))
+        mock.run(f'rm -rf {workdir}/{task}*')
 
     util.updateTask(task, status='finished')
     util.updateBuild(build, status='finished', output={

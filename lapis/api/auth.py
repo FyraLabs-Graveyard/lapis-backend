@@ -1,5 +1,6 @@
 import os
 import json
+from re import U
 import flask
 from flask import Blueprint
 from flask.json import jsonify
@@ -26,7 +27,9 @@ def signup():
     password = flask.request.form.get('password')
     email = flask.request.form.get('email')
     # if anything is missing, return an error
-    return auth.signup(username=username, password=password, email=email)
+    sign = auth.signup(username=username, password=password, email=email)
+    logger.debug("Signup: %s" % sign)
+    return sign
 
 
 @authen.route('/login', methods=['GET', 'POST'])
@@ -43,8 +46,18 @@ def login():
     except Exception as e:
         return flask.make_response(json.dumps({'error': str(e)}), 500)
     utoken = auth.login(username=username, password=password)
-    response.set_cookie('token',value=utoken)
-    #response.set_cookie('sid',str(value=database.sessions.get(utoken)['id']))
+    #logger.debug(utoken)
+    
+    # why is this still not working?
+    # utoken is a JSON object
+    if utoken['success'] == True:
+        # set cookie
+        response.set_cookie('token', utoken['token'])
+    else:
+        # return error in response
+        response.data = json.dumps(utoken)
+        response.status_code = 401
+    # if utoken returns false, return an error
     return response
 
 # for some godforsaken reason, token login has stopped working properly, so it is now a separate endpoint

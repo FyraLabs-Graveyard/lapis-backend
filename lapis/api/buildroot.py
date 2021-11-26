@@ -24,9 +24,10 @@ def before_request():
     """
     Check if the user is authenticated
     """
-    is_authenticated = auth.sessionAuth(flask.request.cookies.get('token'))
-    #if is_authenticated():
-    #    return flask.make_response(json.dumps({'error': 'Not authenticated'}), 401)
+    token = flask.request.cookies.get('token')
+    # check for auth
+    if not auth.sessionAuth(token):
+        return {"error": "Not authorized"}, 401
 
 @buildroot.route('/<name>', methods=['GET'])
 def get_buildroot(name):
@@ -35,7 +36,7 @@ def get_buildroot(name):
     """
     return flask.make_response(json.dumps(database.buildroot.get(name)), 200)
 
-@buildroot.route('/submit', methods=['GET'])
+@buildroot.route('/submit', methods=['POST'])
 def add_buildroot():
     """
     Add a buildroot
@@ -45,6 +46,7 @@ def add_buildroot():
     # get the mock config
     mock_config = flask.request.files['mock']
     # save the mock config to the lapis folder
+    # if buildroot already exists, replace it instead
     try:
         path = f"{manager.mockdir}/{mock_config.filename}"
         mock_config.save(path)
@@ -53,6 +55,13 @@ def add_buildroot():
         return flask.make_response(json.dumps({'error': e}), 400)
     finally:
         # check buildroot ids
+        #check if buildroot with the same name exists
+        # if yes, dont create a new one
+        if database.buildroot.get_by_name(name):
+            return flask.make_response(json.dumps(manager.buildroot_threaded(buildroot=name)), 200)
+
+
+
         buildroots = database.buildroot.list()
         if not buildroots:
             br_id = 1
