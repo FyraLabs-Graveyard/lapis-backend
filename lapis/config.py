@@ -20,7 +20,7 @@ default = {
     'database_ssl_key': '',
     'database_ssl_cert': '',
     'database_ssl_ca': '',
-    'baseurl': '/api',
+    'baseurl': '/',
     'secret': 'obamas-last-name',
     'logfile': '/var/log/lapis/lapis.log',
     'logfile_level': 'DEBUG',

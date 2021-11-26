@@ -53,8 +53,8 @@ CREATE TABLE IF NOT EXISTS builds (
     -- output is a json object that contains the output of the build, containing files, logs, etc
     output jsonb,
     -- buildroot is the name of the buildroot, declared above
-    buildroot VARCHAR(255) NOT NULL,
-    FOREIGN KEY (buildroot) REFERENCES buildroots(name)
+    buildroot VARCHAR(255) NOT NULL
+    --FOREIGN KEY (buildroot) REFERENCES buildroots(name)
 );
 CREATE TABLE IF NOT EXISTS tasks (
     -- available tasks for the workers, it's a battle royale between the workers for who gets to do what
