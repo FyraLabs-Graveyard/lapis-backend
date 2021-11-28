@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     type VARCHAR(255) NOT NULL,
     -- build_id is the id of the build that this task is for
     build_id INTEGER NOT NULL,
-    FOREIGN KEY (build_id) REFERENCES builds(id),
+    -- FOREIGN KEY (build_id) REFERENCES builds(id),
     -- status can have the following values:
     --   pending: the task is waiting to be picked up by a worker
     --   running: the task is currently being processed by a worker

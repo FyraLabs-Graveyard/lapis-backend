@@ -63,7 +63,7 @@ EOF
 %{_bindir}/lapis-server
 %{python3_sitelib}/lapis/
 %{_localstatedir}/www/lapis/lapis.wsgi
-%{buildroot}%{_sysconfdir}/httpd/conf.d/lapis.conf
+%{_sysconfdir}/httpd/conf.d/lapis.conf
 %changelog
 * Fri Nov 26 2021 Cappy Ishihara <cappy@cappuchino.xyz> - 0.1.2-1.um35
 - Added Apache configuration
