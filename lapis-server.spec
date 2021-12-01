@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        Server for the Lapis Build System
 
 License:        MIT
-Source0:        https://gitlab.ultramarine-linux.org/lapis/lapis-backend/-/archive/0.1.2/lapis-backend-0.1.2.tar.gz
+Source0:        https://gitlab.ultramarine-linux.org/lapis/lapis-backend/-/archive/%{version}/lapis-backend-%{version}.tar.gz
 
 BuildRequires:  python3-devel
 Requires:       python3-flask
