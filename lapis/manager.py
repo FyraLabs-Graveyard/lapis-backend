@@ -157,8 +157,7 @@ def mockRebuild(srpm, buildroot):
     except Exception as e:
         logger.error("Failed to create working directory: %s" % e)
         return False, "Failed to create working directory", e
-    mock.run('mock -r %s --configdir %s --rebuild %s --chain --localrepo %s -q' %
-             (buildroot, mockdir, srpm, home)) # set to home because mock likes to output to results/
+    mock.run(f'mock -r {buildroot} --configdir {mockdir} --rebuild {srpm} --chain --localrepo {home} -q --uniqueext={build} --cleanup-after') # set to home because mock likes to output to results/
     
     
     # copy the SRPM to the repo
