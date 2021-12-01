@@ -1,5 +1,5 @@
 Name:           lapis-server
-Version:        0.1.2
+Version:        0.1.3
 Release:        1%{?dist}
 Summary:        Server for the Lapis Build System
 
