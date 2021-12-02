@@ -6,16 +6,15 @@ import configparser
 import lapis.util as util
 import time
 import lapis.logger as logger
-
+timer = 1800
 class RepoManager(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.name = 'RepoManager'
-
     def folders(self):
         # check the mock folder
         # find config files in manager.mockdir
-        logger.info('Checking folder structure')
+        #logger.info('Checking folder structure')
         config = {}
         for mockcfg in os.listdir(manager.mockdir):
             # read the config file
@@ -60,7 +59,7 @@ class RepoManager(threading.Thread):
     def files(self):
         # check the builds folder for packages recursively
         # find all files in manager.builddir
-        logger.info('Moving files to repo')
+        #logger.info('Moving files to repo')
         for root, dirs, files in os.walk(manager.builddir):
             # for each RPM recursively in the builddir
             for file in files:
@@ -111,7 +110,7 @@ class RepoManager(threading.Thread):
         #  arch/
         #   Packages/
         # so traverse to dist/arch and run createrepo on Packages
-        logger.info('generating repo metadata')
+        #logger.info('generating repo metadata')
         for dist in os.listdir(manager.repodir):
             for arch in os.listdir(os.path.join(manager.repodir, dist)):
                 if dist.startswith('.') and dist.endswith('}'):
@@ -119,9 +118,9 @@ class RepoManager(threading.Thread):
                     continue
                 logger.debug(f'Generating repo metadata for {dist} {arch}')
                 if arch == 'Sources':
-                    os.system(f'createrepo --update {os.path.join(manager.repodir, dist, arch)}/ -o {os.path.join(manager.repodir, dist, arch)}')
+                    os.system(f'createrepo -q --update {os.path.join(manager.repodir, dist, arch)}/ -o {os.path.join(manager.repodir, dist, arch)}')
                 else:
-                    os.system(f'createrepo --update {os.path.join(manager.repodir, dist, arch, "Packages")}/ -o {os.path.join(manager.repodir, dist, arch)}')
+                    os.system(f'createrepo -q --update {os.path.join(manager.repodir, dist, arch, "Packages")}/ -o {os.path.join(manager.repodir, dist, arch)}')
                 # we're running update so that it won't waste time re-creating the repo if nothing has changed
                 # using -o too because it will create the repo in the working directory if not specified
         # so much for a single command but we're done
@@ -133,18 +132,32 @@ class RepoManager(threading.Thread):
         # this will run forever unless you kill it
 
         # make sure only one of these threads is running at a time
-
+        global timer
         while self.is_alive():
-            self.folders()
-            self.files()
-            self.repogen()
-            # wait 30 minutes
-            time.sleep(1800)
+            if timer == 1800:
+                self.folders()
+                self.files()
+                self.repogen()
+            # a constantly counting timer, a hack but it works for rescheduling the thread
+            # set the global timer variable in manager
+            timer = timer - 1
+            #print(timer)
+            time.sleep(1)
+            if timer == 0:
+                timer = 1800
         # only one instance of this thread should be running at a time to avoid conflicts
         # so we're done here
+    def reset(self):
+        global timer
+        # reset the timer
+        logger.debug('Resetting timer')
+        logger.debug(f'Timer is {timer}')
+        timer = 1800
+        logger.debug(f'Timer is {timer}')
 
-    def trigger(self):
-        # restart the thread and run it again
-        # this function is called by the web server when the trigger is called
-        self.start()
 RepoManager().start()
+
+def reset_timer():
+    # reset the timer to 30 minutes
+    # run the reset function for the RepoManager thread
+    return RepoManager().reset()

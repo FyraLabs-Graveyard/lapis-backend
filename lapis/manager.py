@@ -50,6 +50,8 @@ mockdir = os.path.join(home, 'mock')
 import lapis.managers
 import lapis.plugins
 
+timer = 1800
+
 def init():
     """
     Initialize the directories for the first time
@@ -181,6 +183,7 @@ def mockRebuild(srpm, buildroot):
     util.updateBuild(build, status='finished', output={
             'repo': repodir + '/' + buildroot + nvr
         })
+    lapis.managers.repo.reset_timer()
     return True, "Successfully rebuilt %s" % srpm
 
 # data processing sub-thread, now only manages dead workers
