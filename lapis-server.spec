@@ -18,9 +18,15 @@ Requires:       python3-psycopg2
 
 %description
 
+%if 0%{?git_build} == 1
+%{folder} = lapis-backend-main
+%else
+%{folder} = lapis-backend-%{version}
+%endif
+
 
 %prep
-%autosetup -n lapis-backend-%{version}
+%autosetup -n %{folder}
 
 
 %install
