@@ -13,16 +13,17 @@ The manager should:
 - Manage the repository for the builds
 - Manage the build directory and the payload directory.
 """
-import glob
 import configparser as cp
 import datetime
-from logging import exception
+import glob
 import os
+import shutil
 import threading
 import time
+from logging import exception
 import git
-import mockbuild.util as mock
 import mockbuild.external
+import mockbuild.util as mock
 import lapis.apiHandler as api
 import lapis.auth as auth
 import lapis.config as config
@@ -30,7 +31,7 @@ import lapis.db as db
 import lapis.internal
 import lapis.logger as logger
 import lapis.util as util
-import shutil
+
 # load the relevant variables from the config file
 home = config.get('datadir')
 logdir = config.get('logfile')
@@ -38,14 +39,16 @@ logdir = config.get('logfile')
 # variables for the various sub-directories next becuase we're lazy
 # also convert them to absolute paths
 builddir = os.path.join(home, 'builds')
-repodir = os.path.join(home, 'results')
+repodir = os.path.join(home, 'repo')
 workdir = os.path.join(home, 'work')
 mockdir = os.path.join(home, 'mock')
 # Let's use the main server for repo management, for now.
 # RPM repos are hardcoded at the moment, just so we can replace Koji with this for once.
 
 # initialize the directories for first time use
-
+# then import the plugins
+import lapis.managers
+import lapis.plugins
 
 def init():
     """
@@ -128,7 +131,7 @@ def mockRebuild(srpm, buildroot):
         build = util.newBuild(
             source=srpm,
             type='mock_rebuild',
-            name=rpm['name'],
+            name=nvr,
             description=rpm['description'],
             buildroot=buildroot,
             # lets use the NVR for the output
@@ -141,8 +144,10 @@ def mockRebuild(srpm, buildroot):
         return False, "Failed to create build", e
     # create a new task for the build
     task = util.newTask(build_id=build,type= 'mock_rebuild', source=srpm, buildroot=buildroot, status='running')
-    pkgpath = f'{repodir}/{buildroot}/{nvr}/'
+    pkgpath = f'{builddir}/localrepo/results/{buildroot}/{nvr}/'
     logger.debug("pkgpath: %s" % pkgpath)
+    # srpm = find the srpm in {workdir}/{task}
+    
     # if the package is already built, delete the success file so we can rebuild it
     if os.path.exists(pkgpath + 'success'):
         os.remove(f'{pkgpath}/success')
@@ -157,17 +162,18 @@ def mockRebuild(srpm, buildroot):
     except Exception as e:
         logger.error("Failed to create working directory: %s" % e)
         return False, "Failed to create working directory", e
-    mock.run(f'mock -r {buildroot} --configdir {mockdir} --rebuild {srpm} --chain --localrepo {home} -q --uniqueext={build} --cleanup-after') # set to home because mock likes to output to results/
-    
-    
+    os.system(f'mock -r {buildroot} --configdir {mockdir} --rebuild {srpm} --resultdir {builddir} --uniqueext={build} --cleanup-after') # set to home because mock likes to output to results/
+
+
     # copy the SRPM to the repo
     try:
-        shutil.copy(srpm, f"{repodir}/{buildroot}/{nvr}/{nvr}.src.rpm")
+        shutil.move(srpm, f"{builddir}/{nvr}.src.rpm")
+        # delete the working directory
+        shutil.rmtree(f"{workdir}/{buildroot}/{task}")
     except Exception as e:
         logger.error("Failed to copy SRPM to repo: %s" % e)
         return False, "Failed to copy SRPM to repo", e
     # update the repos for the buildroot
-    mock.run(f'createrepo -o {repodir}/{buildroot}/ {repodir}/{buildroot}/ --update')
     if os.path.exists(workdir):
         mock.run(f'rm -rf {workdir}/{task}*')
 
@@ -272,42 +278,6 @@ def gitBuild(url, buildroot):
             })
         return builder_threaded(srpm, buildroot)
 
-class datathread(threading.Thread):
-    """
-    The Lapis data processing thread.
-    """
-
-    def __init__(self):
-        """
-        Initialize the data processing thread.
-        """
-        threading.Thread.__init__(self)
-        self.running = True
-        self.thread = None
-        self.name = "Data Processing Thread"
-
-    def run(self):
-        """
-        Start the data processing thread.
-        """
-        logger.info("Lapis data processing thread started.")
-        while self.running:
-            # check for workers
-            workers = db.workers.list()
-            #logger.debug("Workers: %s" % workers)
-            # worker last seen time is a datetime object.
-            # if worker's last seen is more than 10 minutes ago, set it to offline
-            for worker in workers:
-                # logger.debug(worker['last_seen'])
-                if worker['last_seen'] < datetime.datetime.now() - datetime.timedelta(minutes=10):
-                    db.workers.update(worker['id'], {
-                        'name': worker['name'],
-                        'type': worker['type'],
-                        'status': 'offline',
-                        'token': worker['token'],
-                    })
-            time.sleep(1)
-
 
 def gitBuilder_threaded(url, buildroot):
     # do not output logs to the console
@@ -319,8 +289,3 @@ def builder_threaded(srpm, buildroot):
     thread = threading.Thread(target=mockRebuild, args=(srpm, buildroot))
     thread.start()
     return True, 'Successfully started mock rebuild'
-
-# start the data processing thread
-datathread().start()
-
-init()

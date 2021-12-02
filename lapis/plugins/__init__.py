@@ -8,5 +8,5 @@ import lapis.logger
 for module in os.listdir(os.path.dirname(__file__)):
     if module == '__init__.py' or module[-3:] != '.py':
         continue
-    importlib.import_module('lapis.managers.' + module[:-3])
-    lapis.logger.info('Loaded manager: ' + module[:-3])
+    importlib.import_module('lapis.plugins.' + module[:-3])
+    lapis.logger.info('Loaded plugin: ' + module[:-3])

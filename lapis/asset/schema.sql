@@ -43,10 +43,10 @@ CREATE TABLE IF NOT EXISTS builds (
     -- source is the source file or link used to start the build
     -- status is the status of the build (pending, running, success, failure)
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description VARCHAR(255) NOT NULL,
-    source VARCHAR(255) NOT NULL,
-    status VARCHAR(255) NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR NOT NULL,
+    source VARCHAR NOT NULL,
+    status VARCHAR NOT NULL,
     started_at TIMESTAMP NOT NULL,
     finished_at TIMESTAMP,
     duration INTERVAL,
@@ -98,5 +98,5 @@ CREATE TABLE IF NOT EXISTS workers (
     -- last_task is the last task the worker was working on
     last_task INTEGER,
     -- Token: a unique token that is used to authenticate the worker
-    token VARCHAR(255) NOT NULL
+    token VARCHAR NOT NULL
 );

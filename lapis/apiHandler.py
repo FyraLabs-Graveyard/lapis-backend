@@ -27,10 +27,6 @@ from lapis.util import loadmod
 from lapis.util import loadmod
 # run the standalone thread
 
-#TODO make this actually run if it is set to true
-if config.get('standalone') == True:
-    lapis.plugins.standalone.StandaloneSubprocess().start()
-#lapis.plugins.standalone.StandaloneSubprocess().start()
 
 #try and touch database so it generates the tables, weird but it works
 try:

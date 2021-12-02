@@ -74,17 +74,21 @@ def updateBuild(build_id:int, output:str,status:str='finished'):
         ts = timestamp
     else:
         ts = None
-    db.build.update(build_id, {
-        'name': build['name'],
-        'description': build['description'],
-        'source': build['source'],
-        #'type': build['type'],
-        'status': status,
-        'started_at': build['started_at'],
-        'finished_at': ts,
-        'duration': datetime.datetime.now() - build['started_at'],
-        'output': output,
-    })
+    try:
+        db.build.update(build_id, {
+            'name': build['name'],
+            'description': build['description'],
+            'source': build['source'],
+            #'type': build['type'],
+            'status': status,
+            'started_at': build['started_at'],
+            'finished_at': ts,
+            'duration': datetime.datetime.now() - build['started_at'],
+            'output': output,
+        })
+    except:
+        logger.error("Failed to update build %s" % build_id)
+        logger.error(sys.exc_info())
     return build_id
 
 def updateTask(task_id,status:str='finished'):
