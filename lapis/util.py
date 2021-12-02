@@ -109,6 +109,7 @@ def analyze_rpm(rpm_path:str):
     Analyze an RPM to get its metadata
     """
     ts = rpm.TransactionSet()
+    ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
     fdno = os.open(rpm_path, os.O_RDONLY)
     hdr = ts.hdrFromFdno(fdno)
     os.close(fdno)
